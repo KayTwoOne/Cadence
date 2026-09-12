@@ -1,6 +1,6 @@
 """Single source of truth for the version, read by the UI and by the build."""
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 APP_NAME = "Cadence"
 APP_TAGLINE = "controller input suite"
 

@@ -12,7 +12,7 @@ points to hold the shape instead of relying on smoothing to invent it.
 
 import math
 
-from .theme import BG, PANEL, PANEL_2, RAISED, LINE, EDGE, TEXT, MUTED, DIM, TINT
+from .theme import (BG, RAISED, EDGE, LINE, TEXT, MUTED, DIM, TINT)
 
 # The shell needs to separate from the panel behind it, so it gets its own pair of
 # values rather than reusing a surface token that happens to sit at the same level.

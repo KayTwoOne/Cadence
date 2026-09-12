@@ -9,9 +9,10 @@ the continuous stream it needs.
 
 import tkinter as tk
 
-from .theme import (BG, PANEL, PANEL_2, RAISED, RAISED_HI, LINE, TEXT, MUTED, DIM,
-                    BRAND, BRAND_HI, TINT, ACCENT, MISS, XBOX_A, XBOX_B, XBOX_X, XBOX_Y)
-from .hardware import BUTTONS, BIT, LABEL, ASSUMED_REPORT_MS, REPORT_MIN_SAMPLES
+from .theme import (BG, PANEL_2, PANEL, RAISED, LINE, TEXT, MUTED, DIM, BRAND_HI, TINT,
+                    ACCENT, XBOX_A, XBOX_B, XBOX_X, XBOX_Y)
+
+from .hardware import BUTTONS, BIT, ASSUMED_REPORT_MS, REPORT_MIN_SAMPLES
 from .controllers import SCHEMES, SCHEME_ORDER
 from .padart import lit_pair, round_rect
 

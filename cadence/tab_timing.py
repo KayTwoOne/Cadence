@@ -4,9 +4,10 @@ import time
 import tkinter as tk
 from tkinter import ttk
 
-from .theme import (BG, PANEL, PANEL_2, RAISED, RAISED_HI, EDGE, LINE, TEXT, MUTED, DIM,
-                    BRAND, BRAND_HI, TINT, ACCENT, MISS, XBOX_A, XBOX_B, XBOX_X, XBOX_Y)
-from .hardware import BUTTONS, BIT, LABEL
+from .theme import (BG, PANEL_2, PANEL, RAISED_HI, RAISED, LINE, TEXT, MUTED, DIM,
+                    BRAND_HI, TINT, ACCENT, MISS, XBOX_A, XBOX_B, XBOX_X, XBOX_Y)
+
+from .hardware import BUTTONS
 from . import timing as T
 from .timing import fmt_ms, fmt_ticks, stick_arrow
 from .padart import PadArt

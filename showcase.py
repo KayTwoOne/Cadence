@@ -18,9 +18,7 @@ import time
 import tkinter as tk
 
 from cadence import app as A
-from cadence.theme import (BG, PANEL, PANEL_2, EDGE, TEXT, MUTED, DIM, TINT,
-                           BRAND, BRAND_HI, ACCENT)
-from cadence.macros import Rule
+from cadence.theme import (PANEL_2, PANEL, EDGE, TEXT, MUTED, DIM, BRAND_HI)
 
 FAST = "--fast" in sys.argv
 LOOP = "--loop" in sys.argv

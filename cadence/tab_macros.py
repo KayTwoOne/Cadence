@@ -13,9 +13,10 @@ a screen corner.
 import time
 import tkinter as tk
 
-from .theme import (BG, PANEL, PANEL_2, RAISED, RAISED_HI, LINE, TEXT, MUTED, DIM,
-                    BRAND, BRAND_HI, TINT, ACCENT, ACCENT_HI, MISS, INK_ON_LIGHT)
-from .hardware import KEYS, LABEL
+from .theme import (BG, PANEL_2, PANEL, RAISED_HI, RAISED, EDGE, TEXT, MUTED, DIM,
+                    INK_ON_LIGHT, BRAND_HI, BRAND, TINT, ACCENT_HI, ACCENT, MISS, Type)
+
+from .hardware import LABEL
 from .macros import Rule, RATE_UNITS
 from .synth import PANIC_KEYS, cursor_pos
 from . import diagnostics

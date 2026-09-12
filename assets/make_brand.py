@@ -8,7 +8,6 @@ the spirit of the M3 Expressive marks on the other repos.
 Run:  python assets/make_brand.py
 """
 
-import math
 import os
 import sys
 

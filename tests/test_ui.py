@@ -2,7 +2,7 @@
 import sys, os, time, traceback, tempfile, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import tkinter as tk
-from cadence import app as A, macros
+from cadence import app as A
 
 errors = []
 def check(name, cond, detail=""):

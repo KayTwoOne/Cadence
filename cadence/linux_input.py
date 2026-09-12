@@ -20,7 +20,6 @@ import os
 import glob
 import struct
 import threading
-import time
 from collections import defaultdict
 
 EVENT = struct.Struct("IhBB")        # time (ms), value, type, number

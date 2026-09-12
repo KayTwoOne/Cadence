@@ -12,7 +12,6 @@ No controller: python Cadence.py --demo        two fake controllers
 Dry run      : python Cadence.py --no-output   macros count but send nothing
 """
 
-import sys
 import traceback
 
 from cadence.app import main

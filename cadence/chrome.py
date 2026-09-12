@@ -16,8 +16,10 @@ import ctypes
 from ctypes import wintypes
 import tkinter as tk
 
-from .theme import (BG, PANEL, PANEL_2, RAISED, RAISED_HI, LINE, EDGE, TEXT, MUTED,
-                    DIM, BRAND, BRAND_HI, MISS)
+from .theme import (BG, PANEL_2, RAISED_HI, RAISED, EDGE, TEXT, MUTED, DIM, BRAND_HI,
+                    MISS)
+
+from .widgets import rounded_points
 
 GWL_EXSTYLE = -20
 WS_EX_APPWINDOW = 0x00040000
@@ -45,8 +47,6 @@ def keep_on_taskbar(root):
         setl = getattr(u, "SetWindowLongPtrW", u.SetWindowLongW)
         style = get(h, GWL_EXSTYLE)
         setl(h, GWL_EXSTYLE, (style & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW)
-        root.withdraw()
-        root.after(10, root.deiconify)
         return True
     except Exception:
         return False
@@ -149,6 +149,71 @@ class WindowAnimator:
         frame()
 
 
+class WindowButton:
+    """One caption button: a rounded plate with its glyph drawn as strokes.
+
+    Text glyphs for these vary in weight and baseline between fonts, so a minimise
+    that looks centred on one machine sits low on another. Drawing them keeps all
+    three optically aligned and lets the plate round off to match the window."""
+
+    W, H, R = 30, 22, 7
+
+    def __init__(self, parent, ui, kind, command, danger=False):
+        self.ui = ui
+        self.kind = kind
+        self.command = command
+        self.danger = danger
+        self.canvas = tk.Canvas(parent, width=ui.px(self.W), height=ui.px(self.H),
+                                bg=PANEL_2, highlightthickness=0, cursor="hand2")
+        self.plate = self.canvas.create_polygon(
+            *rounded_points(0, 0, ui.px(self.W), ui.px(self.H), ui.px(self.R)),
+            smooth=True, splinesteps=10, fill=PANEL_2, outline="")
+        self.marks = []
+        self.set_kind(kind)
+        self.canvas.bind("<Button-1>", lambda e: self.command())
+        self.canvas.bind("<Enter>", lambda e: self._hover(True))
+        self.canvas.bind("<Leave>", lambda e: self._hover(False))
+
+    def set_kind(self, kind):
+        ui, c = self.ui, self.canvas
+        for m in self.marks:
+            c.delete(m)
+        self.marks = []
+        self.kind = kind
+        cx, cy = ui.px(self.W) / 2, ui.px(self.H) / 2
+        w = max(1.0, 1.3 * ui.S)
+        r = ui.px(4)
+        if kind == "min":
+            self.marks.append(c.create_line(cx - r, cy, cx + r, cy, fill=MUTED,
+                                            width=w, capstyle="round"))
+        elif kind == "max":
+            self.marks.append(c.create_rectangle(cx - r, cy - r, cx + r, cy + r,
+                                                 outline=MUTED, width=w))
+        elif kind == "restore":
+            self.marks.append(c.create_rectangle(cx - r, cy - r + ui.px(2),
+                                                 cx + r - ui.px(2), cy + r,
+                                                 outline=MUTED, width=w))
+            self.marks.append(c.create_line(cx - r + ui.px(2), cy - r + ui.px(2),
+                                            cx - r + ui.px(2), cy - r,
+                                            cx + r, cy - r, cx + r, cy + r - ui.px(2),
+                                            fill=MUTED, width=w))
+        else:
+            self.marks.append(c.create_line(cx - r, cy - r, cx + r, cy + r,
+                                            fill=MUTED, width=w, capstyle="round"))
+            self.marks.append(c.create_line(cx + r, cy - r, cx - r, cy + r,
+                                            fill=MUTED, width=w, capstyle="round"))
+
+    def _hover(self, on):
+        fill = (MISS if self.danger else RAISED_HI) if on else PANEL_2
+        ink = ("#ffffff" if self.danger else TEXT) if on else MUTED
+        self.canvas.itemconfigure(self.plate, fill=fill)
+        for m in self.marks:
+            if self.canvas.type(m) == "rectangle":
+                self.canvas.itemconfigure(m, outline=ink)
+            else:
+                self.canvas.itemconfigure(m, fill=ink)
+
+
 class TitleBar:
     """Our caption strip: mark, name, version, window buttons.
 
@@ -199,21 +264,16 @@ class TitleBar:
         self.update_btn.bind("<Leave>",
                              lambda e: self.update_btn.configure(fg=BRAND_HI))
 
-        # right: window buttons
+        # right: window buttons, inset and rounded rather than full-height slabs
         right = tk.Frame(self.frame, bg=PANEL_2)
-        right.pack(side="right")
+        right.pack(side="right", padx=(0, 7))
         self.buttons = []
-        for glyph, cmd, danger in (("–", on_minimise, False),
-                                   ("□", on_maximise, False),
-                                   ("✕", on_close, True)):
-            b = tk.Label(right, text=glyph, bg=PANEL_2, fg=MUTED, font=ui.f(10),
-                         width=4, cursor="hand2")
-            b.pack(side="left", fill="y")
-            b.bind("<Button-1>", lambda e, c=cmd: c())
-            hot = MISS if danger else RAISED_HI
-            fg_hot = "#ffffff" if danger else TEXT
-            b.bind("<Enter>", lambda e, w=b, c=hot, f=fg_hot: w.configure(bg=c, fg=f))
-            b.bind("<Leave>", lambda e, w=b: w.configure(bg=PANEL_2, fg=MUTED))
+        for kind, cmd, danger, tip in (("min", on_minimise, False, "Minimise"),
+                                       ("max", on_maximise, False, "Maximise"),
+                                       ("close", on_close, True, "Close")):
+            b = WindowButton(right, ui, kind, cmd, danger)
+            b.canvas.pack(side="left", padx=1)
+            ui.tooltip(b.canvas, tip)
             self.buttons.append(b)
 
         # dragging: the bar itself and any inert label on it
@@ -257,7 +317,7 @@ class TitleBar:
 
     def set_maximised(self, on):
         self.maximised = on
-        self.buttons[1].configure(text="❐" if on else "□")
+        self.buttons[1].set_kind("restore" if on else "max")
 
 
 class ResizeGrips:

@@ -11,8 +11,9 @@ import statistics
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-from .theme import (BG, PANEL, PANEL_2, RAISED, RAISED_HI, EDGE, LINE, TEXT, MUTED, DIM,
-                    BRAND, BRAND_HI, TINT, ACCENT, MISS, Type)
+from .theme import (BG, PANEL_2, PANEL, RAISED_HI, RAISED, EDGE, LINE, TEXT, MUTED,
+                    DIM, BRAND_HI, BRAND, TINT, ACCENT, Type)
+
 from .widgets import UIKit
 from .hardware import XInputReader, DemoReader, Poller, BUTTONS, LABEL
 from . import timing as T
@@ -22,7 +23,7 @@ from .synth import PANIC_KEYS, Synth
 from .tab_timing import TimingTab
 from .tab_pads import PadsTab
 from .tab_macros import MacroTab
-from .controllers import SchemeResolver, SCHEMES
+from .controllers import SchemeResolver
 from .version import __version__, APP_NAME, APP_TAGLINE
 from . import chrome, updater
 
@@ -90,22 +91,22 @@ class App:
                 self.frameless = True
             except Exception:
                 self.frameless = False
-        want_w, want_h = self.ui.px(1300), self.ui.px(950)
-        w = min(want_w, root.winfo_screenwidth() - self.ui.px(40))
-        h = min(want_h, root.winfo_screenheight() - self.ui.px(80))
-        root.geometry(f"{w}x{h}")
-        root.minsize(min(self.ui.px(1100), w), min(self.ui.px(720), h))
+        # Stay hidden until the whole window is built and sized. Showing it first and
+        # correcting the size afterwards is what made startup tear: the second resize
+        # relays out every widget while the window is already on screen, and Tk paints
+        # that progressively over several seconds.
+        root.withdraw()
+        root.minsize(self.ui.px(1000), self.ui.px(680))
 
         self.anim = chrome.WindowAnimator(root)
         self._style()
         self._build()
         if self.frameless:
-            chrome.keep_on_taskbar(root)
             self.grips = chrome.ResizeGrips(root, self, self.ui.px(1000),
                                             self.ui.px(680))
-            root.after(120, lambda: chrome.round_corners(root))
         else:
             dark_title_bar(root)
+        self.reveal()
         self.poller.start()
         self.engine.start()
         self.install_hotkey()
@@ -263,7 +264,6 @@ class App:
             self.tab_buttons[key] = (b, rule)
         self.current_tab = None
         self.show_tab("timing")
-        self.root.after(60, self.fit_to_content)
 
     # ---------------------------------------------------------------- window
     def minimise(self):
@@ -275,13 +275,15 @@ class App:
             x, y, w, h = self.restore_geom or (100, 100, self.ui.px(1300),
                                                self.ui.px(950))
             self.maximised = False
-            self.anim.to(x, y, w, h, on_done=self._after_resize)
         else:
             self.restore_geom = (self.root.winfo_x(), self.root.winfo_y(),
                                  self.root.winfo_width(), self.root.winfo_height())
-            wx, wy, ww, wh = chrome.work_area()
+            x, y, w, h = chrome.work_area()
             self.maximised = True
-            self.anim.to(wx, wy, ww, wh, on_done=self._after_resize)
+        # Tweening this would relayout every widget on every frame. One step looks
+        # better than thirty stuttering ones.
+        self.root.geometry(f"{w}x{h}+{x}+{y}")
+        self._after_resize()
         if self.titlebar:
             self.titlebar.set_maximised(self.maximised)
 
@@ -291,29 +293,34 @@ class App:
             if hasattr(self, "grips"):
                 self.grips._place()
 
-    def fit_to_content(self):
-        """Size the window once, to whichever tab needs the most room.
+    def reveal(self):
+        """Work out the final size while hidden, then show the window once.
 
-        Resizing on every tab switch looked reasonable and behaved badly: Tk relays out
-        every widget in the window on each animation frame, and at four hundred-odd
-        widgets that is about a seventh of a second each. Thirty frames of that is the
-        window visibly coming apart and reassembling. Picking one size up front costs
-        a little spare space on the smaller tabs and nothing else."""
-        if self.maximised or not self.frameless:
-            return
-        self.root.update_idletasks()
-        chrome_h = self.titlebar.frame.winfo_height() if self.titlebar else 0
+        Everything here runs before the first paint, so the user never sees a partly
+        laid-out window or a size correction."""
+        root = self.root
+        root.update_idletasks()
+        chrome_h = self.titlebar.frame.winfo_reqheight() if self.titlebar else 0
         need_h = need_w = 0
         for tab in self.tabs.values():
             need_h = max(need_h, tab.frame.winfo_reqheight())
             need_w = max(need_w, tab.frame.winfo_reqwidth())
         wx, wy, ww, wh = chrome.work_area()
         h = max(self.ui.px(720), min(need_h + chrome_h + self.ui.px(150), wh))
-        w = max(self.ui.px(1100), min(need_w + self.ui.px(44), ww))
-        x = max(wx, min(self.root.winfo_x(), wx + ww - w))
-        y = max(wy, min(self.root.winfo_y(), wy + wh - h))
-        self.root.geometry(f"{w}x{h}+{x}+{y}")
-        self._after_resize()
+        # The right column stretches, so its requested width is far smaller than the
+        # width it wants to be used at. A floor keeps the log columns from crushing.
+        w = max(self.ui.px(1320), min(need_w + self.ui.px(44), ww))
+        x = wx + max(0, (ww - w) // 2)
+        y = wy + max(0, (wh - h) // 3)
+        root.geometry(f"{w}x{h}+{x}+{y}")
+        root.update_idletasks()          # force the full layout while still hidden
+        if self.frameless:
+            chrome.keep_on_taskbar(root)
+        root.deiconify()
+        root.update_idletasks()
+        if self.frameless:
+            chrome.round_corners(root)
+            self.grips._place()
 
     def show_tab(self, key):
         if key == self.current_tab:
