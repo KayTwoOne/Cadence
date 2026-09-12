@@ -1,0 +1,24 @@
+# build output
+build/
+dist/
+*.spec
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# editor / OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+# captures and scratch work
+*.csv
+*.rpt
+
+# superseded predecessor, kept on disk but out of the repo
+rl_input_timer*.py
+rl_input_timer.ico
