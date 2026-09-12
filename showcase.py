@@ -36,13 +36,16 @@ def beats():
          "Time between the start of one press and the start of the next.",
          lambda a: a.show_tab("timing")),
         (6, "Every press lands in the log",
-         "Gap, whole Rocket League ticks, how long you held it, stick direction.", None),
+         "Gap, whole engine ticks, how long you held it, stick direction.", None),
         (6, "The strip draws it to scale",
          "One row per button. Bar width is hold time, the bracket above is the gap.",
          None),
         (5, "Nothing finer than the hardware",
          "Pads report every 4 to 8 ms, so gaps are rounded to what can be measured.",
          None),
+        (5, "Ticks follow your engine",
+         "Drop it to 60 Hz and the tick column recounts. Same presses, new divisor.",
+         lambda a: set_tick(a, 60)),
         (4, "Set a target to practise against",
          "Pick a gap and how close counts as a hit.", target_on),
         (7, "Hits and misses tint the log",
@@ -92,7 +95,14 @@ def beats():
 
 
 # ---------------------------------------------------------------- actions
+def set_tick(a, hz):
+    t = a.tabs["timing"]
+    t.tick_var.set(str(hz))
+    t.read_tick_rate()
+
+
 def target_on(a):
+    set_tick(a, 120)
     t = a.tabs["timing"]
     if not t.target_on:
         t.toggle_target()
@@ -237,6 +247,7 @@ class Showcase:
 
 
 def reset(app):
+    set_tick(app, 120)
     app.engine.set_master(False)
     set_scheme(app, "xbox")
     t = app.tabs["timing"]

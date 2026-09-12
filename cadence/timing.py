@@ -6,7 +6,21 @@ from collections import deque, OrderedDict
 
 from .hardware import LABEL
 
-RL_TICK_MS = 1000 / 120     # Rocket League physics runs at 120 ticks/s
+# Game engines sample input once per tick, so a gap only matters to the engine in
+# whole ticks. 120 Hz is a common rate and the default here; set_tick_rate changes it
+# for engines that run at 60, 64, 128 or anything else.
+TICK_HZ = 120.0
+TICK_MS = 1000 / TICK_HZ
+
+
+def set_tick_rate(hz):
+    """Point the tick column at whatever rate you are actually playing at."""
+    global TICK_HZ, TICK_MS
+    TICK_HZ = max(1.0, min(1000.0, float(hz)))
+    TICK_MS = 1000 / TICK_HZ
+    return TICK_HZ
+
+
 STICK_DEADZONE = 0.35       # 0-1: below this the stick counts as centred
 SPLIT_MIN_MS = 25           # two groups of a button pair must differ by at least this
 TARGET_WINDOW = 25          # hit rate is measured over the last this many attempts
@@ -38,13 +52,13 @@ def fmt_ms(value, resolution):
 
 
 def fmt_ticks(gap):
-    """Rocket League samples input once per physics tick, so only whole ticks exist.
+    """A gap in whole engine ticks, because fractions of a tick are never sampled.
 
-    The fractional part of a gap lands somewhere inside a tick and the game never sees
-    it, which is why this reads 36 rather than 36.2."""
+    The fractional part lands somewhere inside a tick and the engine never sees it,
+    which is why this reads 36 rather than 36.2."""
     if gap is None:
         return ""
-    return f"{gap / RL_TICK_MS:.0f}"
+    return f"{gap / TICK_MS:.0f}"
 
 
 class TimingModel:
@@ -102,9 +116,9 @@ class TimingModel:
 
     @staticmethod
     def _split(vals):
-        """Same two buttons can be used for two different things, e.g. A -> A is both
-        jump-to-dodge and the wait before the next jump. Split when the times fall into
-        two clearly separate groups, so one average doesn't blend them together."""
+        """The same two buttons often get used for two different things, so A -> A can
+        be a fast repeat and a slow one at once. Split when the times fall into two
+        clearly separate groups, so one average doesn't blend them together."""
         if len(vals) < 6:
             return None
         v = sorted(vals)

@@ -15,7 +15,8 @@ from .theme import (BG, PANEL, PANEL_2, RAISED, RAISED_HI, EDGE, LINE, TEXT, MUT
                     BRAND, BRAND_HI, TINT, ACCENT, MISS, Type)
 from .widgets import UIKit
 from .hardware import XInputReader, DemoReader, Poller, BUTTONS, LABEL
-from .timing import TimingModel, RL_TICK_MS, fmt_ticks, stick_arrow
+from . import timing as T
+from .timing import TimingModel, fmt_ticks, stick_arrow
 from .macros import MacroEngine, GlobalHotkey
 from .synth import PANIC_KEYS, Synth
 from .tab_timing import TimingTab
@@ -617,7 +618,7 @@ class App:
         resolution column says how much of each figure is real."""
         with open(path, "w", newline="", encoding="utf-8") as fh:
             w = csv.writer(fh)
-            w.writerow(["press", "time_s", "button", "gap_ms", "rl_ticks", "held_ms",
+            w.writerow(["press", "time_s", "button", "gap_ms", "engine_ticks", "held_ms",
                         "stick_x", "stick_y", "sequence", "resolution_ms",
                         "observation_window_ms", "trigger_value"])
             for r in m.presses:
@@ -661,7 +662,7 @@ class App:
         add(f"Resolution       +/- {self.res:.2f} ms  (nothing finer than this is real)")
         add(f"Read loop        {self.poller.sample_hz:,.0f} Hz, "
             f"worst single gap {self.poller.worst_poll_ms:.1f} ms")
-        add(f"RL physics tick  {RL_TICK_MS:.2f} ms (120 per second)")
+        add(f"Engine tick      {T.TICK_MS:.2f} ms ({T.TICK_HZ:.0f} per second)")
         if tab.target_on:
             hits, total = m.target_hits(tab.target, tab.tol)
             add(f"Practice target  {tab.target:.0f} ms +/- {tab.tol:.0f} ms, "
@@ -734,14 +735,15 @@ class App:
              "Time between the start of one press and the start of the next. This is the "
              "number the big readout shows, and the one that matters for flip timing."),
             ("Held for",
-             "How long you kept that button down. In Rocket League a jump held longer "
-             "gives more height, up to the point the game stops counting."),
-            ("RL ticks",
-             f"Rocket League's physics runs 120 times a second, so it looks at your "
-             f"controller once every {RL_TICK_MS:.2f} ms. A gap is shown in whole ticks "
-             f"because that is all the game can see. Two presses "
-             f"{RL_TICK_MS * 3:.0f} ms apart and {RL_TICK_MS * 3 + 4:.0f} ms apart can "
-             f"land on the same tick and play out identically."),
+             "How long you kept that button down. Plenty of games treat a long press "
+             "differently from a short one, up to some cap of their own."),
+            ("Ticks",
+             f"Games sample input once per engine tick. At the {T.TICK_HZ:.0f} Hz set "
+             f"on the Timing tab that is once every {T.TICK_MS:.2f} ms, so gaps are "
+             f"shown in whole ticks because that is all the engine sees. Two presses "
+             f"{T.TICK_MS * 3:.0f} ms apart and {T.TICK_MS * 3 + 4:.0f} ms apart can "
+             f"land on the same tick and play out identically. Set the rate to match "
+             f"whatever you are playing."),
             ("Timing resolution",
              "Your controller sends its state on a fixed schedule, usually every 4 to "
              "8 ms, and nothing can be measured finer than that"
@@ -755,7 +757,7 @@ class App:
              "down is what practice actually does."),
             ("quick and delayed",
              "The same two buttons often get used for two different things. A then A is "
-             "both a fast double jump and a slow one. When your times fall into two "
+             "both a quick repeat and a slow one. When your times fall into two "
              "clearly separate clusters they get listed as separate rows instead of "
              "blended into one meaningless average."),
             ("Target",

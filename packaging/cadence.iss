@@ -49,7 +49,7 @@ UninstallDisplayName={#AppName} {#AppVersion}
 WizardStyle=modern
 Compression=lzma2/max
 SolidCompression=yes
-LicenseFile=..\LICENSE
+LicenseFile=EULA.txt
 
 #if Arch == "x64"
 ArchitecturesAllowed=x64compatible
@@ -67,9 +67,11 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; \
   GroupDescription: "Shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "..\dist\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\README.md";      DestDir: "{app}"; Flags: ignoreversion isreadme
-Source: "..\LICENSE";        DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\{#AppExe}";        DestDir: "{app}"; Flags: ignoreversion
+Source: "..\README.md";              DestDir: "{app}"; Flags: ignoreversion isreadme
+Source: "..\LICENSE";                DestDir: "{app}"; Flags: ignoreversion
+Source: "EULA.txt";                  DestDir: "{app}"; Flags: ignoreversion
+Source: "THIRD-PARTY-NOTICES.txt";   DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}";            Filename: "{app}\{#AppExe}"

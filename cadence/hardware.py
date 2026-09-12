@@ -120,7 +120,7 @@ class XInputReader:
 
 
 class DemoReader:
-    """Two fake controllers: slot 1 does flip + cancel, slot 2 does double jumps."""
+    """Two fake controllers running scripted button patterns, for demos and tests."""
 
     DEMO_REPORT_MS = 4.0    # a real pad only sends state every few ms, so this does too
 
@@ -252,8 +252,8 @@ class ReportRate:
 
     So intervals are only collected while an analogue input is genuinely in motion: a
     stick off centre, or a trigger part way down. In that state the raw values wobble
-    every report and the intervals really are the report period. In Rocket League this
-    is continuous, because you are always holding a trigger and steering.
+    every report and the intervals really are the report period. In most games that is
+    continuous, because a stick or trigger is usually being held.
     """
 
     def __init__(self):

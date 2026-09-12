@@ -1,0 +1,114 @@
+CADENCE - END USER LICENCE AGREEMENT
+
+Last updated: 12 September 2026
+
+Read this before installing. Installing or using Cadence means you accept it. If you
+do not accept it, cancel the installer and delete the download.
+
+Cadence is free and open source software published under the MIT Licence. The full
+MIT text is in LICENSE, installed alongside the application and available at
+https://github.com/KayTwoOne/Cadence. Where anything below appears to conflict with
+the MIT Licence, the MIT Licence wins.
+
+
+1. WHAT YOU MAY DO
+
+You may install and run Cadence on as many machines as you like, for personal or
+commercial purposes, at no cost. You may copy it, change it, and pass on your changed
+version, provided you keep the copyright notice and the MIT permission notice with it.
+
+The source is public. You are welcome to read it, build it yourself, and satisfy
+yourself that it does what this document says.
+
+
+2. WHAT CADENCE DOES TO YOUR SYSTEM
+
+You should understand these before you agree.
+
+2.1 Reading controllers. Cadence reads the state of game controllers attached to your
+computer, through XInput on Windows and through the kernel joystick interface on
+Linux. It also queries Windows for the USB vendor and product identifiers of those
+controllers so it can display the correct button names.
+
+2.2 Sending input. The macro feature generates synthetic mouse and keyboard input,
+which the operating system delivers to whichever window is focused. This only happens
+while you have armed a macro and are pressing a controller button you bound to it.
+Macros are disarmed every time Cadence starts.
+
+2.3 A system-wide hotkey. Cadence registers one global hotkey, F8 by default, so that
+macros can be stopped when Cadence is not the focused window. You can change which key
+that is, and no other key is intercepted.
+
+2.4 Update checks. On startup Cadence makes one HTTPS request to the GitHub releases
+API to see whether a newer version exists. That request sends nothing about you beyond
+what any HTTP request sends: your IP address and a user agent string naming the
+application and its version. Nothing is downloaded or installed unless you click the
+prompt and agree. You can prevent the check entirely by blocking the application in
+your firewall.
+
+2.5 What is not collected. Cadence contains no analytics, telemetry, advertising,
+crash reporting or account system. It does not transmit your inputs, your timings,
+your macros, your settings or any other information anywhere. Files it writes, such as
+exported CSV logs, are written where you choose and stay there.
+
+
+3. USING MACROS RESPONSIBLY
+
+The macro feature automates input on your own computer, which is lawful and ordinary.
+How you use it is your responsibility.
+
+Many online games, competitive platforms and online services prohibit automated input
+in their own terms of service, and some detect and penalise it. Using Cadence in a way
+that breaks an agreement you have with a third party is between you and them. The
+author is not a party to it and accepts no responsibility for the consequences,
+including suspended or terminated accounts.
+
+Do not use Cadence to interfere with computers you do not own or are not authorised to
+use.
+
+
+4. NO WARRANTY
+
+Cadence is provided "as is", without warranty of any kind, express or implied,
+including the warranties of merchantability, fitness for a particular purpose and
+non-infringement.
+
+Timing measurements are limited by your hardware. Cadence reports its own measurement
+resolution and rounds its figures to that resolution, but it does not promise
+laboratory accuracy and should not be relied upon where a wrong number would cause
+harm or loss.
+
+
+5. LIABILITY
+
+To the extent permitted by law, the author is not liable for any claim, damages or
+other liability arising from the software or its use, whether in contract, tort or
+otherwise. This includes lost data, lost time, hardware problems, and any action taken
+against you by a third party.
+
+Nothing here limits liability that cannot lawfully be limited, and if you are a
+consumer it does not affect your statutory rights.
+
+
+6. THIRD PARTY COMPONENTS
+
+Cadence is written in Python and its Windows and Linux builds are packaged with
+PyInstaller. The Python interpreter and standard library are distributed under the
+Python Software Foundation Licence, and PyInstaller's runtime is distributed under a
+GPL licence carrying an explicit exception permitting the packaging of applications
+under any licence. The relevant notices travel inside the build.
+
+The application depends on no other third party packages at runtime.
+
+
+7. UNINSTALLING
+
+Remove Cadence through Settings, Apps and features, or through the uninstaller in its
+Start Menu folder. On Linux, remove the package or delete the directory it was
+unpacked into. Uninstalling removes the application and anything it stored; files you
+exported yourself are left alone.
+
+
+8. CONTACT
+
+Questions, faults and licensing queries: https://github.com/KayTwoOne/Cadence/issues

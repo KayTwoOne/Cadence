@@ -72,11 +72,14 @@ def build_binary():
 
 # ---------------------------------------------------------------- windows
 def find_iscc():
+    """Locate the Inno Setup compiler, newest version first."""
     if shutil.which("iscc"):
-        return "iscc"
-    for base in (os.environ.get("ProgramFiles(x86)", ""),
-                 os.environ.get("ProgramFiles", "")):
-        for name in ("Inno Setup 6", "Inno Setup 5"):
+        return shutil.which("iscc")
+    for base in (os.environ.get("ProgramFiles", ""),
+                 os.environ.get("ProgramFiles(x86)", "")):
+        if not base:
+            continue
+        for name in ("Inno Setup 7", "Inno Setup 6", "Inno Setup 5"):
             p = os.path.join(base, name, "ISCC.exe")
             if os.path.exists(p):
                 return p

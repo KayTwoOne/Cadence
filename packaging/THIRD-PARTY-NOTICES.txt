@@ -1,0 +1,61 @@
+THIRD PARTY NOTICES FOR CADENCE
+
+Cadence itself is MIT licensed. See LICENSE.
+
+The application imports nothing outside the Python standard library at runtime. The
+components below are present because the shipped builds bundle an interpreter, or
+because they are used at build time only.
+
+
+PYTHON
+Python Software Foundation Licence, version 2
+Copyright (c) 2001-2026 Python Software Foundation. All rights reserved.
+https://docs.python.org/3/license.html
+
+The interpreter and standard library are bundled into the Windows and Linux builds.
+Tkinter, used for the interface, is part of that standard library.
+
+
+TCL/TK
+BSD-style licence
+Copyright (c) 1991-1994 The Regents of the University of California
+Copyright (c) 1994-1996 Sun Microsystems, Inc.
+https://www.tcl.tk/software/tcltk/license.html
+
+Bundled as the toolkit behind Tkinter.
+
+
+PYINSTALLER
+GPL 2.0 with an exception for bundled applications
+Copyright (c) 2005-2026, PyInstaller Development Team
+https://github.com/pyinstaller/pyinstaller/blob/develop/COPYING.txt
+
+Used to produce the single-file builds. The exception in that licence allows an
+application packaged with PyInstaller to be distributed under its own terms, which is
+why Cadence stays MIT.
+
+
+PILLOW
+MIT-CMU licence
+Copyright (c) 2010-2026 by Jeffrey A. Clark and contributors
+https://github.com/python-pillow/Pillow/blob/main/LICENSE
+
+Build-time only. It generates the icon and banner in assets/ and is not imported by
+the application or included in the builds.
+
+
+INNO SETUP
+Modified BSD licence
+Copyright (C) 1997-2026 Jordan Russell. All rights reserved.
+Portions Copyright (C) 2000-2026 Martijn Laan. All rights reserved.
+https://jrsoftware.org/files/is/license.txt
+
+Build-time only. It produces the Windows installer.
+
+
+FONTS
+
+No fonts are bundled. The interface asks the operating system for Bahnschrift and
+Cascadia Mono, and falls back through Segoe UI, Consolas and finally the system
+default when they are absent. All of those are supplied by the operating system under
+its own terms.

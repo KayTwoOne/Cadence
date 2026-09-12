@@ -7,7 +7,8 @@ from tkinter import ttk
 from .theme import (BG, PANEL, PANEL_2, RAISED, RAISED_HI, EDGE, LINE, TEXT, MUTED, DIM,
                     BRAND, BRAND_HI, TINT, ACCENT, MISS, XBOX_A, XBOX_B, XBOX_X, XBOX_Y)
 from .hardware import BUTTONS, BIT, LABEL
-from .timing import RL_TICK_MS, fmt_ms, fmt_ticks, stick_arrow
+from . import timing as T
+from .timing import fmt_ms, fmt_ticks, stick_arrow
 from .padart import PadArt
 
 MAX_LOG_ROWS = 500
@@ -124,6 +125,20 @@ class TimingTab:
                                   cursor="hand2", command=self.set_gap)
         self.gap_scale.set(DEFAULT_SEQUENCE_GAP)
         self.gap_scale.pack(fill="x")
+
+        tickf = tk.Frame(left, bg=PANEL)
+        tickf.pack(fill="x", pady=(10, 0))
+        tk.Label(tickf, text="Engine tick rate", bg=PANEL, fg=TEXT,
+                 font=ui.f(10)).pack(side="left")
+        self.tick_var = tk.StringVar(value=f"{T.TICK_HZ:.0f}")
+        ui.entry(tickf, self.tick_var, 5, self.read_tick_rate).pack(side="left",
+                                                                   padx=(8, 4), ipady=2)
+        tk.Label(tickf, text="Hz", bg=PANEL, fg=MUTED,
+                 font=ui.f(9)).pack(side="left")
+        self.tick_note = tk.Label(left, text="", bg=PANEL, fg=MUTED, font=ui.f(9),
+                                  anchor="w", wraplength=ui.px(400), justify="left")
+        self.tick_note.pack(fill="x", pady=(2, 0))
+        self.paint_tick_note()
 
         tgt = tk.Frame(left, bg=PANEL)
         tgt.pack(fill="x", pady=(12, 0))
@@ -243,8 +258,8 @@ class TimingTab:
                     "This strip draws your presses to scale, left to right, as they happen.",
                     "One row per button. A bar is how long you held it; the bracket above "
                     "is the gap between presses.",
-                    f"Faint vertical lines are Rocket League physics ticks, one every "
-                    f"{RL_TICK_MS:.2f} ms."]):
+                    f"Faint vertical lines are engine ticks at {T.TICK_HZ:.0f} Hz, "
+                    f"one every {T.TICK_MS:.2f} ms."]):
                 c.create_text(w / 2, h / 2 + (i * 18 - 4) * S, text=line, fill=MUTED,
                               font=ui.f(10 if i == 0 else 9))
             return
@@ -273,11 +288,11 @@ class TimingTab:
                           anchor="e", fill=lane_col, font=ui.f(10, "bold"))
         lanes_end = top + len(lanes) * lane_h
 
-        if RL_TICK_MS * ppm >= 6 * S:
+        if T.TICK_MS * ppm >= 6 * S:
             k = 0
-            while k * RL_TICK_MS <= span:
-                c.create_line(left + k * RL_TICK_MS * ppm, top,
-                              left + k * RL_TICK_MS * ppm, lanes_end, fill="#1a2822")
+            while k * T.TICK_MS <= span:
+                c.create_line(left + k * T.TICK_MS * ppm, top,
+                              left + k * T.TICK_MS * ppm, lanes_end, fill="#1a2822")
                 k += 1
         step = next((st for st in (5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000)
                      if st * ppm >= 70 * S), 5000)
@@ -339,7 +354,7 @@ class TimingTab:
         L = self.app.label
         lines = [f"{L(a['key'])} → {L(b['key'])}",
                  f"{fmt_ms(gap, self.res)}" + (f"  ± {self.res:.1f}" if self.res else ""),
-                 f"{fmt_ticks(gap)} Rocket League ticks ({RL_TICK_MS:.2f} ms each)"]
+                 f"{fmt_ticks(gap)} ticks at {T.TICK_HZ:.0f} Hz ({T.TICK_MS:.2f} ms each)"]
         if a["held"] is not None:
             lines.append(f"{L(a['key'])} was held {fmt_ms(a['held'], self.res)}")
         hit = self.on_target(gap)
@@ -398,9 +413,9 @@ class TimingTab:
             ticks = fmt_ticks(r["gap"])
             self.sub2.configure(text=f"{self.app.label(r['prev'])}  →  "
                                      f"{self.app.label(r['key'])}"
-                                     f"        {ticks} RL tick{'' if ticks == '1' else 's'}")
-            note = (f"the game checks your pad every {RL_TICK_MS:.2f} ms, "
-                    "so anything finer is invisible in-game")
+                                     f"        {ticks} tick{'' if ticks == '1' else 's'}")
+            note = (f"an engine at {T.TICK_HZ:.0f} Hz reads your pad every "
+                    f"{T.TICK_MS:.2f} ms, so anything finer never reaches it")
             if hit is True:
                 note = (f"hit · inside ±{self.tol:.0f} ms of {self.target:.0f} ms"
                         f"   ·   ") + note
@@ -506,6 +521,21 @@ class TimingTab:
     def set_gap(self, v):
         self.app.gap_ref[0] = float(v)
         self.gap_label.configure(text=f"{int(float(v))} ms of no presses")
+
+    def read_tick_rate(self):
+        """Recount every gap against the new rate. Nothing is re-measured, only
+        re-divided, so the whole log can just be redrawn."""
+        try:
+            T.set_tick_rate(float(self.tick_var.get()))
+        except ValueError:
+            return
+        self.paint_tick_note()
+        self.refresh_all()
+
+    def paint_tick_note(self):
+        self.tick_note.configure(
+            text=f"One tick is {T.TICK_MS:.2f} ms. Gaps closer together than that "
+                 f"land on the same tick and play out identically.")
 
     def toggle_target(self):
         self.target_on = not self.target_on
