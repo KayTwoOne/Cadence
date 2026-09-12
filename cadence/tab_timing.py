@@ -181,7 +181,8 @@ class TimingTab:
 
         self.tl = tk.Canvas(right, height=ui.px(230), bg=PANEL, highlightthickness=0)
         self.tl.grid(row=1, column=0, sticky="ew", pady=(6, 12))
-        self.tl.bind("<Configure>", lambda e: self.draw_timeline())
+        self._redraw_job = None
+        self.tl.bind("<Configure>", lambda e: self.queue_redraw())
         self.tl.bind("<Motion>", self.timeline_hover)
         self.tl.bind("<Leave>", lambda e: self.ui.hide_tip())
         self.tl.bind("<Button-1>", lambda e: self.dismiss_hint())
@@ -211,6 +212,19 @@ class TimingTab:
         sb.pack(side="right", fill="y")
 
     # ---------------------------------------------------------------- timeline
+    def queue_redraw(self):
+        """Collapse a burst of resize events into one redraw."""
+        if self._redraw_job is not None:
+            try:
+                self.root.after_cancel(self._redraw_job)
+            except Exception:
+                pass
+        self._redraw_job = self.root.after(60, self._do_redraw)
+
+    def _do_redraw(self):
+        self._redraw_job = None
+        self.draw_timeline()
+
     def draw_timeline(self):
         c, ui = self.tl, self.ui
         S = ui.S

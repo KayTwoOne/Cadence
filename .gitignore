@@ -18,6 +18,7 @@ desktop.ini
 # captures and scratch work
 *.csv
 *.rpt
+assets/_*.png
 
 # superseded predecessor, kept on disk but out of the repo
 rl_input_timer*.py

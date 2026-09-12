@@ -6,5 +6,5 @@ APP_TAGLINE = "controller input suite"
 
 # Where updates will be looked for once the repo is public. Nothing reads this yet;
 # it is here so the version string and the update source stay in one place.
-REPO = "Blur009/cadence"        # placeholder until the repo exists
+REPO = "KayTwoOne/Cadence"
 RELEASES_API = f"https://api.github.com/repos/{REPO}/releases/latest"

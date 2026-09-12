@@ -1,0 +1,127 @@
+name: Build and release
+
+# Tag a commit and this produces every download for that release.
+#
+#     git tag v0.3.1 && git push origin v0.3.1
+#
+# Each job builds on the OS and CPU it targets, because a PyInstaller binary cannot
+# be cross-built. Windows ARM64 is left out until GitHub offers a hosted ARM Windows
+# runner; add it here when they do.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Windows ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+            python: "3.12"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: ${{ matrix.arch }}
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip pyinstaller pillow
+
+      - name: Regenerate icon and banner
+        run: python assets/make_brand.py
+
+      - name: Run the test suites
+        run: python tests/run_all.py
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build exe and installer
+        run: python packaging/build.py --installer
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.arch }}
+          path: |
+            dist/Cadence.exe
+            dist/Cadence-Setup-*.exe
+
+  linux:
+    name: Linux ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk dpkg-dev
+          python -m pip install --upgrade pip pyinstaller pillow
+
+      - name: Regenerate icon and banner
+        run: python assets/make_brand.py
+
+      - name: Build binary, tarball and deb
+        run: python packaging/build.py --installer
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: |
+            dist/Cadence-*-linux-*.tar.gz
+            dist/cadence_*.deb
+
+  release:
+    name: Publish release
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: downloads
+
+      - name: Collect the files
+        run: |
+          mkdir -p release
+          find downloads -type f \( -name '*.exe' -o -name '*.deb' -o -name '*.tar.gz' \) \
+            -exec cp {} release/ \;
+          ls -la release
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
+          body: |
+            Pick **Cadence-Setup-…-x64.exe** if you want it installed properly, with a
+            Start Menu entry and an uninstaller. Take the bare **Cadence.exe** if you
+            would rather keep it portable.
+
+            On Linux, install the `.deb` or unpack the tarball into `/opt`. Your user
+            has to be in the `input` group to read `/dev/input/js*`.
+
+            Cadence checks this page for newer versions and offers to update itself.

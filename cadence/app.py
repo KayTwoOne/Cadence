@@ -3,6 +3,7 @@
 import gc
 import sys
 import csv
+import threading
 import time
 import queue
 import ctypes
@@ -22,7 +23,7 @@ from .tab_pads import PadsTab
 from .tab_macros import MacroTab
 from .controllers import SchemeResolver, SCHEMES
 from .version import __version__, APP_NAME, APP_TAGLINE
-from . import chrome
+from . import chrome, updater
 
 GC_INTERVAL = 12.0
 
@@ -63,10 +64,12 @@ class App:
         self.res = 0.0
         self.last_status = 0.0
         self.last_gc = time.perf_counter()
+        self.tick_job = None
         self.help_win = None
         self.panic_key = "F8"
         self.hotkey = None
         self.schemes = SchemeResolver()
+        self.pending_update = None
         self.maximised = False
         self.restore_geom = None
         self.frameless = False
@@ -105,6 +108,9 @@ class App:
         self.poller.start()
         self.engine.start()
         self.install_hotkey()
+        # One quiet check a few seconds after launch, off the UI thread. If GitHub is
+        # slow, blocked or down, nothing happens and nobody is told.
+        self.root.after(4000, self.check_for_update)
 
         for key, fn in (("c", self.clear), ("p", self.toggle_pause),
                         ("s", self.export), ("h", self.show_help)):
@@ -256,6 +262,7 @@ class App:
             self.tab_buttons[key] = (b, rule)
         self.current_tab = None
         self.show_tab("timing")
+        self.root.after(60, self.fit_to_content)
 
     # ---------------------------------------------------------------- window
     def minimise(self):
@@ -283,38 +290,29 @@ class App:
             if hasattr(self, "grips"):
                 self.grips._place()
 
-    def fit_to_tab(self, key):
-        """Grow the window when a tab needs more room than it has.
+    def fit_to_content(self):
+        """Size the window once, to whichever tab needs the most room.
 
-        Tabs hold very different amounts: the macro editor in advanced mode is far
-        taller than the timing view. Rather than letting the taller one be clipped or
-        forcing every tab to live at the tallest size, the window eases to whatever
-        the current tab actually asks for."""
+        Resizing on every tab switch looked reasonable and behaved badly: Tk relays out
+        every widget in the window on each animation frame, and at four hundred-odd
+        widgets that is about a seventh of a second each. Thirty frames of that is the
+        window visibly coming apart and reassembling. Picking one size up front costs
+        a little spare space on the smaller tabs and nothing else."""
         if self.maximised or not self.frameless:
             return
-        tab = self.tabs.get(key)
-        if not tab:
-            return
         self.root.update_idletasks()
-        chrome_h = (self.titlebar.frame.winfo_height() if self.titlebar else 0)
-        need = tab.frame.winfo_reqheight() + chrome_h + self.ui.px(150)
-        need_w = max(tab.frame.winfo_reqwidth() + self.ui.px(44), self.ui.px(1060))
+        chrome_h = self.titlebar.frame.winfo_height() if self.titlebar else 0
+        need_h = need_w = 0
+        for tab in self.tabs.values():
+            need_h = max(need_h, tab.frame.winfo_reqheight())
+            need_w = max(need_w, tab.frame.winfo_reqwidth())
         wx, wy, ww, wh = chrome.work_area()
-        target_h = max(self.ui.px(700), min(need, wh))
-        target_w = max(self.root.winfo_width(), min(need_w, ww))
-        cur_h, cur_w = self.root.winfo_height(), self.root.winfo_width()
-        # Only ever grow on a tab switch. Shrinking as you move around would make the
-        # window jitter, which is far more annoying than a little spare space.
-        if target_h <= cur_h + 4 and target_w <= cur_w + 4:
-            return
-        x, y = self.root.winfo_x(), self.root.winfo_y()
-        h = max(cur_h, target_h)
-        w = max(cur_w, target_w)
-        if y + h > wy + wh:
-            y = max(wy, wy + wh - h)
-        if x + w > wx + ww:
-            x = max(wx, wx + ww - w)
-        self.anim.to(x, y, w, h, on_done=self._after_resize)
+        h = max(self.ui.px(720), min(need_h + chrome_h + self.ui.px(150), wh))
+        w = max(self.ui.px(1100), min(need_w + self.ui.px(44), ww))
+        x = max(wx, min(self.root.winfo_x(), wx + ww - w))
+        y = max(wy, min(self.root.winfo_y(), wy + wh - h))
+        self.root.geometry(f"{w}x{h}+{x}+{y}")
+        self._after_resize()
 
     def show_tab(self, key):
         if key == self.current_tab:
@@ -336,7 +334,6 @@ class App:
             self.pad_pills.pack(side="right", padx=(0, 16))
             self.pad_sep.pack(side="right", fill="y", pady=4, padx=(0, 16))
         self.tabs[key].refresh_all()
-        self.root.after(16, lambda: self.fit_to_tab(key))
 
     # ---------------------------------------------------------------- model
     def scheme(self, slot=None):
@@ -434,6 +431,67 @@ class App:
     def _engine_changed(self):
         self.tabs["macros"].paint_master()
         self.paint_logo()
+
+    # ---------------------------------------------------------------- updates
+    def check_for_update(self, announce=False):
+        def done(latest):
+            self.root.after(0, lambda: self.update_found(latest, announce))
+        updater.UpdateCheck(done).start()
+
+    def update_found(self, latest, announce):
+        if not latest:
+            if announce:
+                messagebox.showinfo("Cadence",
+                                    f"You are on {__version__}, which is the newest.")
+            return
+        self.pending_update = latest
+        if self.titlebar:
+            self.titlebar.show_update(latest["version"])
+
+    def run_update(self):
+        latest = self.pending_update
+        if not latest:
+            return
+        notes = latest["notes"]
+        if len(notes) > 700:
+            notes = notes[:700].rsplit("\n", 1)[0] + "\n..."
+        kind = updater.install_kind()
+        if kind == "source":
+            messagebox.showinfo(
+                "Cadence",
+                f"Version {latest['version']} is out.\n\n"
+                f"This copy runs from source, so git pull is the update.")
+            return
+        if not messagebox.askyesno(
+                f"Cadence {latest['version']}",
+                f"You have {__version__}. Version {latest['version']} is "
+                f"available.\n\n{notes}\n\nDownload and install it now?"):
+            return
+        asset = updater.pick_asset(latest["assets"], kind)
+        if not asset:
+            messagebox.showinfo(
+                "Cadence",
+                f"That release has no Windows download.\n"
+                f"Open {latest['page']} to get it manually.")
+            return
+
+        def work():
+            try:
+                path = updater.download(asset)
+            except Exception as exc:
+                self.root.after(0, lambda: messagebox.showerror(
+                    "Download failed",
+                    f"{exc}\n\nTry {latest['page']} instead."))
+                return
+            self.root.after(0, lambda: self.finish_update(path))
+        threading.Thread(target=work, daemon=True).start()
+        if self.titlebar:
+            self.titlebar.set_update_text("downloading...")
+
+
+    def finish_update(self, path):
+        if updater.apply_update(path):
+            self.close()
 
     # ---------------------------------------------------------------- hotkey
     def install_hotkey(self):
@@ -741,9 +799,16 @@ class App:
         if not gc.isenabled() and now - self.last_gc > GC_INTERVAL:
             self.last_gc = now
             gc.collect()
-        self.root.after(8, self.tick)
+        self.tick_job = self.root.after(8, self.tick)
 
     def close(self):
+        if self.tick_job is not None:
+            try:
+                self.root.after_cancel(self.tick_job)
+            except Exception:
+                pass
+            self.tick_job = None
+        self.anim.stop()
         self.poller.running = False
         self.engine.stop()
         if self.hotkey:
@@ -755,6 +820,18 @@ class App:
             except Exception:
                 pass
         self.root.destroy()
+
+
+def open_reader():
+    """Whichever controller backend this machine actually has."""
+    if sys.platform == "win32":
+        return XInputReader()
+    from . import linux_input
+    if not linux_input.available():
+        raise RuntimeError("No controller found at /dev/input/js*. Plug one in, or "
+                           "check your user is in the 'input' group.")
+    return linux_input.LinuxJoystickReader()
+
 
 
 def main():
@@ -772,10 +849,11 @@ def main():
             pass
     root = tk.Tk()
     try:
-        reader = DemoReader() if demo else XInputReader()
+        reader = DemoReader() if demo else open_reader()
     except RuntimeError as e:
         root.withdraw()
-        messagebox.showerror(APP_NAME, f"{e}\n\nTip: run with --demo to preview the app.")
+        messagebox.showerror(APP_NAME, f"{e}" + chr(10) * 2 +
+                             "Run with --demo to look around without one.")
         return
     app = App(root, reader, demo, live_output=not safe)
     gc.collect()

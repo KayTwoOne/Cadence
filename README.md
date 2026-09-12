@@ -1,56 +1,186 @@
-# Cadence — Controller Input Suite
+<div align="center">
 
-A Windows tool for controllers: measure how fast you press things, check every pad
-you have plugged in, and bind pad buttons to mouse and keyboard macros.
+![Cadence](assets/banner.png)
 
-## Tabs
+</div>
 
-**Timing** — one controller, every press, and the gap between each pair. The headline
-number is how long you left between your last two presses, shown to the precision the
-hardware can actually support and in whole Rocket League physics ticks.
+Cadence measures how fast you press things on a controller, shows you every pad
+plugged into the machine, and lets you bind pad buttons to mouse and keyboard macros.
 
-**Controllers** — all four XInput slots at once: what each device is, whether it is
-wired, live button and stick state, and a per-pad timing calibration.
+I built it for Rocket League. Flip resets, speed flips and double jumps all live or die
+on gaps of a few dozen milliseconds, and I wanted to see those gaps instead of guessing
+at them. The pad tester and the macro side grew out of the same window because they
+needed the same controller reader underneath.
 
-**Macros** — bind a pad button to a stream of clicks or keypresses. Hold or toggle,
-fixed or random rate, duty cycle, click and time limits, double clicks, fixed-position
-clicking, and rates per second, minute, hour or day.
+---
 
-## Honest limits
+## What it does
 
-**Timing resolution is set by your controller, not by this app.** XInput returns the
-last report the pad sent, and pads report every 4–8 ms. Reading faster than that
-re-reads the same packet. Cadence measures your pad's real report rate and shows the
-resulting margin rather than printing decimals it cannot support.
+### Timing
 
-Some pads send nothing at all while they sit still, so that rate can only be measured
-while a stick or trigger is moving. The Controllers tab has a button that does this
-properly.
+Press two buttons and the big number tells you the gap between them. Under it sits
+the same gap in whole Rocket League physics ticks, because the game only looks at your
+controller 120 times a second and anything finer than 8.33 ms never reaches it.
 
-**Button names are a best guess.** XInput hides the brand, so the layout is recovered
-from the USB vendor id through RawInput. A pad running through DS4Windows or Steam
-Input reports as a virtual Microsoft pad, and with several pads attached Windows does
-not say which slot is which. Whenever detection is not certain the app says so and
-the layout can be set by hand.
+Every press goes into a log with its gap, tick count, hold time and stick direction.
+The strip above the log draws the last few presses to scale, so you can see overlaps
+and hold lengths rather than reading them off a table.
+
+Set a target gap and Cadence tracks how many of your last 25 attempts landed inside it.
+Hits tint amber, misses tint red.
+
+### Controllers
+
+All four XInput slots at once. Each card shows what the device is, whether it is wired,
+its battery if it has one, and every button lighting up as you press it.
+
+It also measures how often your pad reports, which is the number that decides how much
+of the timing you can trust.
+
+### Macros
+
+Bind a pad button to a stream of clicks or keypresses. Hold it or toggle it, fire at a
+fixed rate or a random one, cap it by clicks or by seconds, click wherever the pointer
+is or at a spot you picked earlier.
+
+There is a button that types a known word into a box so you can tell whether synthetic
+input works on your machine before you point a macro at a game.
+
+---
+
+## Two things worth knowing
+
+**Your controller sets the timing resolution, not this app.**
+
+XInput hands back the last report the pad sent. Pads report every 4 to 8 ms, so reading
+faster than that just re-reads the same packet. Cadence measures your pad's real report
+rate and rounds every gap to what that supports, instead of printing decimals it cannot
+back up.
+
+Some pads send nothing at all while they sit still, which means the rate can only be
+measured while a stick or trigger is moving. The Controllers tab has a button for that.
+
+**Button names are a guess unless Cadence says otherwise.**
+
+XInput reports every pad as an Xbox one, so the brand is recovered from the USB vendor
+id. That fails in two ways worth knowing about: a pad running through DS4Windows or
+Steam Input genuinely is a virtual Microsoft device, and with several pads attached
+Windows does not say which slot is which. When detection is not certain the app says
+so, and you can set the layout by hand.
+
+---
 
 ## Stopping a macro
 
-Three independent ways, because output lands in whatever window you are looking at:
+Three ways, because the output lands in whatever window you are looking at:
 
-1. The **ARMED** switch.
-2. The **panic key** (F8 by default), which works even when Cadence is not focused.
-   If another app already owns that key the app tells you instead of pretending.
-3. Moving the **mouse into a screen corner**.
+1. The **ARMED** switch in the app.
+2. The **panic key**, F8 by default, which works when Cadence is not focused. If
+   another app already owns that key, Cadence tells you rather than pretending.
+3. Shoving the **mouse into a screen corner**.
 
-## Running
+---
 
-    python Cadence.py                 # normal
-    python Cadence.py --demo          # two fake controllers, no hardware needed
-    python Cadence.py --no-output     # macros count but send nothing
+## Installing
 
-Windows 10/11 and Python 3.10+. No third-party packages.
+Grab the latest from [Releases](https://github.com/KayTwoOne/Cadence/releases).
+
+| You want | Take |
+|---|---|
+| It installed properly, Start Menu, uninstaller | `Cadence-Setup-<version>-x64.exe` |
+| Portable, no install | `Cadence.exe` |
+| Debian, Ubuntu, Mint | `cadence_<version>_amd64.deb` |
+| Any other Linux | `Cadence-<version>-linux-x64.tar.gz` into `/opt` |
+
+Cadence checks for newer releases on startup and offers to install them. Nothing
+downloads until you click the prompt.
+
+### Linux
+
+Controllers are read through the kernel joystick interface, so your user needs to be in
+the `input` group:
+
+```bash
+sudo usermod -aG input $USER
+```
+
+Log out and back in for that to take.
+
+I develop on Windows and have not tested the Linux build on real hardware. If it
+misbehaves, open an issue and say what pad you are on.
+
+---
+
+## Running from source
+
+```bash
+git clone https://github.com/KayTwoOne/Cadence
+cd Cadence
+python Cadence.py
+```
+
+Python 3.10 or newer. No third-party packages for the app itself; Pillow is only needed
+if you want to regenerate the icon and banner.
+
+```bash
+python Cadence.py --demo        # two fake controllers, nothing to plug in
+python Cadence.py --no-output   # macros count but send nothing
+python showcase.py              # walks itself through every feature
+python tests/run_all.py         # the test suites
+```
+
+`showcase.py` exists so I can record demo GIFs without clicking through the app by
+hand. It runs on the fake controllers with macro output switched off.
+
+---
 
 ## Building
 
-    pip install pyinstaller
-    python -m PyInstaller --onefile --noconsole --name Cadence --icon cadence.ico Cadence.py
+```bash
+pip install pyinstaller pillow
+python packaging/build.py --installer
+```
+
+On Windows that wants [Inno Setup](https://jrsoftware.org/isdl.php) on PATH for the
+installer step; without it you still get the portable exe. On Linux it produces a
+tarball, and a `.deb` as well if `dpkg-deb` is around.
+
+Tagging a commit builds everything on GitHub Actions and publishes a release:
+
+```bash
+git tag v0.3.1
+git push origin v0.3.1
+```
+
+---
+
+## Ideas for later
+
+Roughly in the order I would do them.
+
+- [ ] **Save your setup.** Macros, targets and pad layouts vanish when you close the
+      app. They should persist.
+- [ ] **Macro profiles** you can switch between, and per-game ones that follow whatever
+      is in the foreground.
+- [ ] **Sequences, not just repeats.** Record a run of presses with their real timing
+      and play it back.
+- [ ] **Stick and trigger analysis.** Deadzone size, drift, how linear the triggers
+      are, and a circularity test for the sticks.
+- [ ] **Compare two sessions** so you can see whether a week of practice moved
+      anything.
+- [ ] **A proper end-to-end latency test** using a photodiode or a flashing region,
+      measuring pad to photons rather than pad to app.
+- [ ] **DualSense over Bluetooth** read directly, which would give real button names
+      with no guessing.
+- [ ] **Overlay mode**, a small always-on-top readout to keep beside a game.
+- [ ] **Export to CSV on a timer** for long sessions.
+- [ ] **Rebindable everything**, including the in-app shortcuts.
+- [ ] **Signed builds**, so Windows stops warning about an unknown publisher.
+
+Open an issue if you want one of these sooner, or if your pad does something strange.
+
+---
+
+## Licence
+
+MIT. Do what you like with it.

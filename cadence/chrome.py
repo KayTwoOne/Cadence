@@ -189,6 +189,16 @@ class TitleBar:
         ui.tooltip(v, f"{APP_NAME} {__version__}")
         self.version_label = v
 
+        # Hidden until a check finds something. Sitting next to the version number is
+        # where someone already looks to find out what they are running.
+        self.update_btn = tk.Label(centre, text="", bg=PANEL_2, fg=BRAND_HI,
+                                   font=ui.f(9, "semi"), cursor="hand2", padx=8)
+        self.update_btn.bind("<Button-1>", lambda e: app.run_update())
+        self.update_btn.bind("<Enter>",
+                             lambda e: self.update_btn.configure(fg=TEXT))
+        self.update_btn.bind("<Leave>",
+                             lambda e: self.update_btn.configure(fg=BRAND_HI))
+
         # right: window buttons
         right = tk.Frame(self.frame, bg=PANEL_2)
         right.pack(side="right")
@@ -233,6 +243,15 @@ class TitleBar:
         dx, dy = self._drag
         self.root.geometry(f"+{ev.x_root - dx}+{ev.y_root - dy}")
 
+    def show_update(self, version):
+        self.update_btn.configure(text=f"update to {version}")
+        self.update_btn.pack(side="left", padx=(10, 0), pady=(2, 0))
+        self.ui.tooltip(self.update_btn, f"Cadence {version} is available. "
+                                         f"Click to download and install it.")
+
+    def set_update_text(self, text):
+        self.update_btn.configure(text=text)
+
     def set_lamp(self, on):
         self.lamp.itemconfigure(self.lamp_id, fill=BRAND_HI if on else RAISED)
 
@@ -258,14 +277,26 @@ class ResizeGrips:
         self.min_w, self.min_h = min_w, min_h
         self.grips = {}
         self.state = None
+        self._job = None
         for side in self.CURSORS:
             g = tk.Frame(root, bg=BG, cursor=self.CURSORS[side])
             g.bind("<Button-1>", lambda e, s=side: self._press(e, s))
             g.bind("<B1-Motion>", self._drag)
             self.grips[side] = g
-        root.bind("<Configure>", self._place, add="+")
+        root.bind("<Configure>", self._queue, add="+")
+
+    def _queue(self, _=None):
+        """Repositioning eight frames on every Configure is eight relayouts per frame
+        of a drag. Doing it once the drag stops is indistinguishable and far cheaper."""
+        if self._job is not None:
+            try:
+                self.root.after_cancel(self._job)
+            except Exception:
+                pass
+        self._job = self.root.after(50, self._place)
 
     def _place(self, _=None):
+        self._job = None
         if self.app.maximised:
             for g in self.grips.values():
                 g.place_forget()

@@ -13,7 +13,7 @@ from .theme import (BG, PANEL, PANEL_2, RAISED, RAISED_HI, LINE, TEXT, MUTED, DI
                     BRAND, BRAND_HI, TINT, ACCENT, MISS, XBOX_A, XBOX_B, XBOX_X, XBOX_Y)
 from .hardware import BUTTONS, BIT, LABEL, ASSUMED_REPORT_MS, REPORT_MIN_SAMPLES
 from .controllers import SCHEMES, SCHEME_ORDER
-from .padart import lit_pair
+from .padart import lit_pair, round_rect
 
 CAL_SECONDS = 4.0
 
@@ -69,16 +69,23 @@ class PadCard:
                                     anchor="w", justify="left", wraplength=ui.px(330))
         self.scheme_note.pack(fill="x", pady=(0, 8))
 
-        # live button grid: the fastest way to prove a pad works at all
-        grid = tk.Frame(body, bg=PANEL)
-        grid.pack(fill="x")
+        # Live button grid, drawn rather than built from widgets.
+        self.cell_w, self.cell_h = 41, 24
+        self.lamp_canvas = tk.Canvas(body, height=ui.px(self.cell_h * 2 + 4),
+                                     bg=PANEL, highlightthickness=0)
+        self.lamp_canvas.pack(fill="x")
         self.lamps = {}
         for i, (_, key, label) in enumerate(BUTTONS):
-            lamp = tk.Label(grid, text=label, font=ui.f(9, "semi"), width=5, pady=4,
-                            bg=PANEL_2, fg=MUTED)
-            lamp.grid(row=i // 8, column=i % 8, padx=1, pady=1, sticky="ew")
-            self.lamps[key] = lamp
-        self.grid_frame = grid
+            x = (i % 8) * self.cell_w
+            y = (i // 8) * (self.cell_h + 3)
+            shape = round_rect(self.lamp_canvas,
+                               *ui.s(x + 1, y + 1, x + self.cell_w - 2,
+                                     y + self.cell_h - 1),
+                               ui.S * 5, fill=PANEL_2, outline="")
+            text = self.lamp_canvas.create_text(
+                *ui.s(x + self.cell_w / 2 - 0.5, y + self.cell_h / 2),
+                text=label, fill=MUTED, font=ui.f(9, "semi"))
+            self.lamps[key] = (shape, text)
 
         sticks = tk.Frame(body, bg=PANEL)
         sticks.pack(fill="x", pady=(8, 0))
@@ -129,8 +136,8 @@ class PadCard:
     def relabel(self):
         """Repaint every button name from the active scheme."""
         sch = self.app.schemes.scheme(self.slot)
-        for key, lamp in self.lamps.items():
-            lamp.configure(text=sch.label(key))
+        for key, (_, text) in self.lamps.items():
+            self.lamp_canvas.itemconfigure(text, text=sch.label(key))
         guess = self.app.schemes.is_guess(self.slot)
         note = self.app.schemes.explain(self.slot)
         if self.slot not in self.app.connected:
@@ -181,15 +188,16 @@ class PadCard:
         self.presses.configure(text=f"{n} press{'' if n == 1 else 'es'}" if connected else "")
 
         mask, lt, rt, lx, ly, rx, ry = latest if latest else (0, 0, 0, 0, 0, 0, 0)
-        for key, lamp in self.lamps.items():
+        for key, (shape, text) in self.lamps.items():
             on = bool(mask & BIT[key])
             if self.cache.get(("lamp", key)) == on:
                 continue
             self.cache[("lamp", key)] = on
             face = self.app.schemes.scheme(self.slot).faces.get(key) or COLOUR[key]
             fill, ink = lit_pair(face)
-            lamp.configure(bg=fill if on else PANEL_2,
-                           fg=ink if on else (MUTED if connected else DIM))
+            self.lamp_canvas.itemconfigure(shape, fill=fill if on else PANEL_2)
+            self.lamp_canvas.itemconfigure(
+                text, fill=ink if on else (MUTED if connected else DIM))
         for key, (vx, vy) in (("LS", (lx, ly)), ("RS", (rx, ry))):
             cx, cy, travel, dot = self.dots[key]
             px = cx + travel * max(-1, vx / 32767)
