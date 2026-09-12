@@ -198,6 +198,7 @@ class TimingTab:
         self.tl = tk.Canvas(right, height=ui.px(230), bg=PANEL, highlightthickness=0)
         self.tl.grid(row=1, column=0, sticky="ew", pady=(6, 12))
         self._redraw_job = None
+        self._last_draw = 0.0
         self.tl.bind("<Configure>", lambda e: self.queue_redraw())
         self.tl.bind("<Motion>", self.timeline_hover)
         self.tl.bind("<Leave>", lambda e: self.ui.hide_tip())
@@ -242,9 +243,10 @@ class TimingTab:
         self.draw_timeline()
 
     def draw_timeline(self):
+        self._last_draw = time.perf_counter()
         c, ui = self.tl, self.ui
         S = ui.S
-        c.delete("all")
+        c.delete("strip")
         self.gap_zones = []
         w, h = c.winfo_width(), c.winfo_height()
         ui.grad(c, w, h, PANEL_2, PANEL)
@@ -254,7 +256,7 @@ class TimingTab:
         if not seq:
             title = ("Press buttons on your controller" if self.app.selected is not None
                      else "Plug in a controller")
-            c.create_text(w / 2, h / 2 - 36 * S, text=title, fill=TEXT, font=ui.f(14, "semi"))
+            c.create_text(w / 2, h / 2 - 36 * S, text=title, fill=TEXT, font=ui.f(14, "semi"), tags="strip")
             for i, line in enumerate([
                     "This strip draws your presses to scale, left to right, as they happen.",
                     "One row per button. A bar is how long you held it; the bracket above "
@@ -262,7 +264,7 @@ class TimingTab:
                     f"Faint vertical lines are engine ticks at {T.TICK_HZ:.0f} Hz, "
                     f"one every {T.TICK_MS:.2f} ms."]):
                 c.create_text(w / 2, h / 2 + (i * 18 - 4) * S, text=line, fill=MUTED,
-                              font=ui.f(10 if i == 0 else 9))
+                              font=ui.f(10 if i == 0 else 9), tags="strip")
             return
         now = time.perf_counter()
         t0 = seq[0]["t"]
@@ -283,26 +285,26 @@ class TimingTab:
         for i, key in enumerate(lanes):
             y = top + i * lane_h
             if i % 2 == 0:
-                c.create_rectangle(left, y, right, y + lane_h, fill=PANEL_2, width=0)
+                c.create_rectangle(left, y, right, y + lane_h, fill=PANEL_2, width=0, tags="strip")
             lane_col = self.app.scheme().faces.get(key, COLOUR.get(key, MUTED))
             c.create_text(left - 10 * S, y + lane_h / 2, text=self.app.label(key),
-                          anchor="e", fill=lane_col, font=ui.f(10, "bold"))
+                          anchor="e", fill=lane_col, font=ui.f(10, "bold"), tags="strip")
         lanes_end = top + len(lanes) * lane_h
 
         if T.TICK_MS * ppm >= 6 * S:
             k = 0
             while k * T.TICK_MS <= span:
                 c.create_line(left + k * T.TICK_MS * ppm, top,
-                              left + k * T.TICK_MS * ppm, lanes_end, fill="#1a2822")
+                              left + k * T.TICK_MS * ppm, lanes_end, fill="#1a2822", tags="strip")
                 k += 1
         step = next((st for st in (5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000)
                      if st * ppm >= 70 * S), 5000)
         mm = 0
         while mm <= span:
             x = left + mm * ppm
-            c.create_line(x, top, x, lanes_end, fill=LINE)
+            c.create_line(x, top, x, lanes_end, fill=LINE, tags="strip")
             c.create_text(x, lanes_end + 12 * S, text=f"{mm} ms" if mm else "0",
-                          fill=MUTED, font=ui.f(8))
+                          fill=MUTED, font=ui.f(8), tags="strip")
             mm += step
 
         for r, end in zip(seq, ends):
@@ -312,7 +314,7 @@ class TimingTab:
             bar_col = self.app.scheme().faces.get(r["key"],
                                                   COLOUR.get(r["key"], MUTED))
             c.create_rectangle(x0, y + 5 * S, x1, y + lane_h - 5 * S, fill=bar_col,
-                               outline=TEXT if r["held"] is None else "", width=1.5 * S)
+                               outline=TEXT if r["held"] is None else "", width=1.5 * S, tags="strip")
 
         taken = {0: [], 1: []}
         for n in range(1, len(seq)):
@@ -334,21 +336,21 @@ class TimingTab:
             col = TINT if hit is None else (ACCENT if hit else MISS)
             for coords in ((xa, yl, xb, yl), (xa, yl - 4 * S, xa, yl + 4 * S),
                            (xb, yl - 4 * S, xb, yl + 4 * S)):
-                c.create_line(*coords, fill=col, width=1.5 * S)
-            c.create_line(xb, yl + 4 * S, xb, top, fill=col, dash=(2, 3))
-            c.create_text(mid, yl - 9 * S, text=text, fill=TEXT, font=ui.f(9, "semi"))
+                c.create_line(*coords, fill=col, width=1.5 * S, tags="strip")
+            c.create_line(xb, yl + 4 * S, xb, top, fill=col, dash=(2, 3), tags="strip")
+            c.create_text(mid, yl - 9 * S, text=text, fill=TEXT, font=ui.f(9, "semi"), tags="strip")
             self.gap_zones.append((x0, x1, yl - 18 * S, yl + 6 * S, self.gap_detail(a, b)))
 
         if len(full) > len(seq):
             c.create_text(left, lanes_end + 30 * S, anchor="w",
                           text=f"showing the last {len(seq)} of {len(full)} presses",
-                          fill=MUTED, font=ui.f(8))
+                          fill=MUTED, font=ui.f(8), tags="strip")
         if self.hint_on:
             y = h - 11 * S
             if y >= lanes_end + 16 * S:
                 c.create_text(64 * S, y, anchor="w", fill=DIM, font=ui.f(8),
                               text="bars are presses, width is how long you held  ·  "
-                                   "hover a bracket for detail  ·  click to hide this")
+                                   "hover a bracket for detail  ·  click to hide this", tags="strip")
 
     def gap_detail(self, a, b):
         gap = b["gap"]
@@ -639,5 +641,13 @@ class TimingTab:
         self.art.update(latest, connected)
         m = self.app.cur
         live = bool(m) and any(r["held"] is None for r in m.sequence)
-        if dirty or live:
-            self.draw_timeline()
+        if not (dirty or live):
+            return
+        # A held button makes the strip live, but redrawing it at the tick rate means
+        # rebuilding the whole canvas a hundred and twenty times a second. Twenty-five
+        # is smooth to look at and leaves the main thread free for everything else.
+        now = time.perf_counter()
+        if not dirty and now - self._last_draw < 0.04:
+            return
+        self._last_draw = now
+        self.draw_timeline()

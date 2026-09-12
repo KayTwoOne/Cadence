@@ -96,14 +96,17 @@ class App:
         # relays out every widget while the window is already on screen, and Tk paints
         # that progressively over several seconds.
         root.withdraw()
-        root.minsize(self.ui.px(1000), self.ui.px(680))
+        # Measured: the tab strip plus the controller pills plus the action buttons
+        # need about 1270 px. Below that pack silently drops whatever is packed last,
+        # so the floor sits just above it.
+        root.minsize(self.ui.px(1290), self.ui.px(700))
 
         self.anim = chrome.WindowAnimator(root)
         self._style()
         self._build()
         if self.frameless:
-            self.grips = chrome.ResizeGrips(root, self, self.ui.px(1000),
-                                            self.ui.px(680))
+            self.grips = chrome.ResizeGrips(root, self, self.ui.px(1290),
+                                            self.ui.px(700))
         else:
             dark_title_bar(root)
         self.reveal()
@@ -331,7 +334,14 @@ class App:
             self.ui.restyle(b, PANEL if on else BG, PANEL if on else RAISED,
                             TEXT if on else MUTED)
             rule.configure(bg=BRAND_HI if on else BG)
-        self.tabs[key].frame.tkraise()
+        # Only the visible tab stays under the geometry manager. Tk lays out mapped
+        # widgets whether or not they are on top, so leaving all three gridded costs
+        # about a quarter of every resize frame for two tabs nobody is looking at.
+        for k, tab in self.tabs.items():
+            if k == key:
+                tab.frame.grid()
+            else:
+                tab.frame.grid_remove()
         # Actions belong to the tab that uses them, so the bar changes with the tab
         # rather than showing controls that do nothing where you are standing.
         self.timing_actions.pack_forget()

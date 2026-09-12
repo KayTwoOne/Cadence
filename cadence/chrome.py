@@ -53,7 +53,12 @@ def keep_on_taskbar(root):
 
 
 def round_corners(root, radius=CORNER_RADIUS):
-    """Soften the window's own outline to match the softened controls inside it."""
+    """Soften the window's own outline to match the softened controls inside it.
+
+    SetWindowRgn installs a fixed clipping region, so it has to be recomputed every
+    time the window changes size. Leaving a stale one behind does not just look wrong:
+    Windows clips the window to the old rectangle, and anything outside it is both
+    invisible and unclickable until the region is replaced."""
     if sys.platform != "win32":
         return
     try:
@@ -63,7 +68,20 @@ def round_corners(root, radius=CORNER_RADIUS):
         if w <= 1 or ht <= 1:
             return
         rgn = g.CreateRoundRectRgn(0, 0, w + 1, ht + 1, radius * 2, radius * 2)
-        u.SetWindowRgn(h, rgn, True)
+        # SetWindowRgn takes ownership of the region on success; deleting it here
+        # would leave the window clipped to a freed handle.
+        if not u.SetWindowRgn(h, rgn, True):
+            g.DeleteObject(rgn)
+    except Exception:
+        pass
+
+
+def clear_region(root):
+    """Hand the window back to Windows unclipped."""
+    if sys.platform != "win32":
+        return
+    try:
+        ctypes.windll.user32.SetWindowRgn(_hwnd(root), None, True)
     except Exception:
         pass
 
@@ -347,16 +365,23 @@ class ResizeGrips:
 
     def _queue(self, _=None):
         """Repositioning eight frames on every Configure is eight relayouts per frame
-        of a drag. Doing it once the drag stops is indistinguishable and far cheaper."""
+        of a drag. Doing it once the drag settles is indistinguishable and far cheaper.
+
+        The clipping region is refreshed here too, because it is tied to the window
+        size and a stale one silently cuts off whatever grew outside it."""
         if self._job is not None:
             try:
                 self.root.after_cancel(self._job)
             except Exception:
                 pass
-        self._job = self.root.after(50, self._place)
+        self._job = self.root.after(50, self._settled)
+
+    def _settled(self):
+        self._job = None
+        round_corners(self.root)
+        self._place()
 
     def _place(self, _=None):
-        self._job = None
         if self.app.maximised:
             for g in self.grips.values():
                 g.place_forget()

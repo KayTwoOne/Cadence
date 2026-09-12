@@ -46,10 +46,17 @@ class UIKit:
         """A shallow vertical wash across a canvas, drawn as a handful of bands.
 
         The contrast is only a few levels, enough to stop a large dark area reading as
-        a flat cut-out and not enough to band visibly."""
-        canvas.delete(tag)
+        a flat cut-out and not enough to band visibly. Rebuilt only when the canvas
+        changes size, because forty items per redraw adds up fast on a canvas that is
+        cleared and repainted many times a second."""
         if w <= 1 or h <= 1:
             return
+        key = (round(w), round(h), top, bottom, bands)
+        if getattr(canvas, "_grad_key", None) == key and canvas.find_withtag(tag):
+            canvas.tag_lower(tag)
+            return
+        canvas._grad_key = key
+        canvas.delete(tag)
         a = tuple(int(top[i:i + 2], 16) for i in (1, 3, 5))
         b = tuple(int(bottom[i:i + 2], 16) for i in (1, 3, 5))
         step = h / bands
