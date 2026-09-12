@@ -57,12 +57,13 @@ class LinuxJoystickReader:
         self.running = True
         self.lock = threading.Lock()
         self.scan()
-        if not self.devices:
-            # Nothing plugged in is fine; the scanner will find pads as they appear.
-            pass
 
     # ---- discovery
     def scan(self):
+        """Pick up any device node that has appeared since the last look.
+
+        Called on a timer by the poller's scanner thread, so plugging a pad in while
+        Cadence is running works the same way it does on Windows."""
         for path in sorted(glob.glob("/dev/input/js*")):
             slot = int(path.rsplit("js", 1)[-1])
             if slot > 3 or slot in self.devices:

@@ -378,6 +378,15 @@ class Poller(threading.Thread):
     def _scan(self):
         buf = XInputState()
         while self.running:
+            # XInput answers for any slot at any time, but a reader that enumerates
+            # device nodes has to be told to look again before a newly attached pad
+            # can show up at all.
+            rescan = getattr(self.reader, "scan", None)
+            if rescan is not None:
+                try:
+                    rescan()
+                except Exception:
+                    pass
             for slot in range(4):
                 if slot not in self.connected and self.reader.read(slot, buf) is not None:
                     self.connected.add(slot)
