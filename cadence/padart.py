@@ -42,18 +42,54 @@ def round_rect(c, x0, y0, x1, y1, r, **kw):
     return c.create_polygon(*rounded_points(x0, y0, x1, y1, r), smooth=True, **kw)
 
 
-def ink_for(bg):
-    """Black or white on a lit button, whichever is actually readable.
+DARK_INK = "#0a1410"
+LIGHT_INK = "#ffffff"
 
-    One fixed ink colour leaves some buttons - a red Circle, say - with a glyph that
-    barely separates from its own background."""
-    r, g, b = (int(bg[i:i + 2], 16) for i in (1, 3, 5))
+
+def _lum(h):
+    r, g, b = (int(h[i:i + 2], 16) for i in (1, 3, 5))
 
     def lin(v):
         v /= 255
         return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
-    lum = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
-    return "#0a1410" if lum > 0.32 else "#ffffff"
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+
+
+def _contrast(a, b):
+    la, lb = _lum(a), _lum(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def _mix(colour, towards, k):
+    a = [int(colour[i:i + 2], 16) for i in (1, 3, 5)]
+    b = [int(towards[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#%02x%02x%02x" % tuple(round(a[i] + (b[i] - a[i]) * k) for i in range(3))
+
+
+def ink_for(bg):
+    """Whichever of black or white reads better on this colour."""
+    return DARK_INK if _contrast(DARK_INK, bg) >= _contrast(LIGHT_INK, bg) else LIGHT_INK
+
+
+def lit_pair(colour, target=4.5):
+    """A lit button's fill and its glyph colour, guaranteed to be readable together.
+
+    Several real button colours - the red Circle, the blue X - sit in the middle of
+    the range where neither black nor white glyph reaches AA contrast against them.
+    Rather than accept an unreadable glyph or abandon the factory colours, the fill is
+    nudged toward whichever end helps until the pair clears the threshold. The button
+    still reads as red or blue; it just stops fighting its own label."""
+    ink = ink_for(colour)
+    if _contrast(ink, colour) >= target:
+        return colour, ink
+    towards = DARK_INK if ink == LIGHT_INK else LIGHT_INK
+    fill = colour
+    for step in range(1, 21):
+        fill = _mix(colour, towards, step * 0.04)
+        if _contrast(ink, fill) >= target:
+            break
+    return fill, ink
 
 
 # Right half of the shell, top centre round to bottom centre. Mirrored for the left.
@@ -269,10 +305,11 @@ class PadArt:
             if self.cache.get(key) == on:
                 continue
             self.cache[key] = on
-            c.itemconfigure(iid, fill=col if on else rest)
+            fill, _ = lit_pair(col)
+            c.itemconfigure(iid, fill=fill if on else rest)
             if gid is None:
                 continue
-            lit = ink_for(col)
+            _, lit = lit_pair(col)
             if symbols and key in ("A", "B", "X", "Y"):
                 # outline shapes carry their colour on the stroke, the cross on fill
                 if key == "A":

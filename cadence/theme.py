@@ -26,7 +26,7 @@ LINE = "#2b3f36"        # hairline rules and outlines
 # ---------------------------------------------------------------- ink
 TEXT = "#eef5f1"
 MUTED = "#9dbfa8"       # the chart's Tone swatch, which is exactly a muted body colour
-DIM = "#748f80"        # lifted to clear 4.5:1 on every surface; small captions use it
+DIM = "#7d9a89"        # lifted to clear 4.5:1 on every surface; small captions use it
 INK_ON_LIGHT = "#08211a"   # for text sitting on a bright green or amber fill
 
 # ---------------------------------------------------------------- meaning

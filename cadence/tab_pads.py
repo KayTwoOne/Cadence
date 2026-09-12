@@ -13,7 +13,7 @@ from .theme import (BG, PANEL, PANEL_2, RAISED, RAISED_HI, LINE, TEXT, MUTED, DI
                     BRAND, BRAND_HI, TINT, ACCENT, MISS, XBOX_A, XBOX_B, XBOX_X, XBOX_Y)
 from .hardware import BUTTONS, BIT, LABEL, ASSUMED_REPORT_MS, REPORT_MIN_SAMPLES
 from .controllers import SCHEMES, SCHEME_ORDER
-from .padart import ink_for
+from .padart import lit_pair
 
 CAL_SECONDS = 4.0
 
@@ -186,10 +186,10 @@ class PadCard:
             if self.cache.get(("lamp", key)) == on:
                 continue
             self.cache[("lamp", key)] = on
-            face = self.app.schemes.scheme(self.slot).faces.get(key)
-            lit = face or COLOUR[key]
-            lamp.configure(bg=lit if on else PANEL_2,
-                           fg=ink_for(lit) if on else (MUTED if connected else DIM))
+            face = self.app.schemes.scheme(self.slot).faces.get(key) or COLOUR[key]
+            fill, ink = lit_pair(face)
+            lamp.configure(bg=fill if on else PANEL_2,
+                           fg=ink if on else (MUTED if connected else DIM))
         for key, (vx, vy) in (("LS", (lx, ly)), ("RS", (rx, ry))):
             cx, cy, travel, dot = self.dots[key]
             px = cx + travel * max(-1, vx / 32767)
